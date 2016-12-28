@@ -1,0 +1,105 @@
+body {
+background-color: #2c3e50;
+color: #ecf0f1;
+font-family: Roboto, Arial, sans-serif;
+
+-webkit-touch-callout: none;
+-webkit-user-select: none;
+-khtml-user-select: none;
+-moz-user-select: none;
+-ms-user-select: none;
+user-select: none;
+}
+
+.box {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 10px;
+    margin-top: 5px;
+    box-shadow: 0 1px 3px 0 rgba(0,0,0,0.2),0 1px 1px 0 rgba(0,0,0,0.14),0 2px 1px -1px rgba(0,0,0,0.12);
+    border-radius: 2px;
+    width: 30%;
+    background-color: #e74c3c;
+
+    padding: 5px;
+}
+/* Phone probably */
+@media screen and (min-width: 200px) and (max-width: 1440px) { 
+    .box {
+        box-shadow: 0 1px 3px 0 rgba(0,0,0,0.2),0 1px 1px 0 rgba(0,0,0,0.14),0 2px 1px -1px rgba(0,0,0,0.12);
+        border-radius: 2px;
+        background-color: #e74c3c;
+        padding: 5px;
+
+        margin: 0 auto;
+        margin-top: 5px;
+        width: 75%;
+    }
+
+    #userFooter{
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        padding: 1rem;
+        background-color: #e74c3c;
+        text-align: center;
+    }
+}
+
+.footer-align{
+    display: inline;
+}
+.left{
+    text-align: left;
+}
+.center{
+    text-align: center;
+}
+.right{
+    text-align: right;
+}
+
+#sessions{
+    margin-top: 50px;
+}
+.arrow{
+    text-align: right;
+}
+.sessionEntry{
+    cursor: pointer;
+}
+.box:hover{
+    background-color: #18293a;
+}
+.hide{
+    display: none;
+}
+.title{
+    font-family: 'Delius Swash Caps', cursive;
+    text-align: center;
+    margin: 0;
+    padding: 0px 0px 6px 0px;
+    font-size: 51px;
+    line-height: 44px;
+    letter-spacing: -2px;
+    font-weight: bold;
+
+    margin-top: 25px;
+}
+a{
+    color: white;
+}
+a:link {
+    color: white;
+}
+a:visited {
+    color: white;
+}
+a:hover {
+    color: gray;
+}
+a:active {
+    color: gray;
+}

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link href="/css/custom.css" rel="stylesheet">
+    <link href="/css/overlay.css" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/3.6.4/firebase.js"></script>
+    <script src="https://cdn.firebase.com/libs/firebaseui/1.0.0/firebaseui.js"></script>
+    <script src="/js/firebase-init.js"></script>
+    <script src="/js/utils.js"></script>
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <link type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/1.0.0/firebaseui.css" />
+    <link href="https://fonts.googleapis.com/css?family=Delius+Swash+Caps" rel="stylesheet">
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <title>Peli</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<style>
+    #bleh{
+        margin-top: 1500px;
+    }
+</style>
+<body>
+    <h2 class="title" onclick='home()'>Dicky</h2>
+    <div id="firebaseui-auth-container"></div>
+    <div id="sessions" class="hide">
+        <div id="sessions_list"></div>
+    </div>
+    <div id="gameView" class="hide">
+        <h2 style="text-align: center" id='game_sessionName'></h2>
+        <div id="players_list">
+
+        </div>
+        <div id="userFooter">
+            <div>
+                <span class="left" id='own_name'></span>
+                <span class="right"><span id='own_points'></span>p</span>
+            </div>
+        </div>
+    </div>
+    <div id="bleh" class="">
+        <input type="text" id="newSessionName"><button onClick="join_session()">Create new session</button>
+        <button onclick='signOut()' id="signOutBtn" class="hide">Log out</button>
+    </div>
+
+    <!-- Actions overlay-->
+    <div id="actions" class="overlay">
+        <p class="closebtn" onclick="closeActions()">&times;</a>
+        <div class="overlay-content" id='actions_list'>
+        </div>
+    </div>
+    <!-- Task overlay-->
+    <div id="task_overlay" class="overlay">
+        <div class="overlay-content">
+            <p id="incoming_task"></p>
+            <button id="reject_task_button" onclick="reject_task()">Torju</button>
+            <button id="accept_task_button" onclick="accept_task()">Hyväksy</button>
+        </div>
+    </div>
+</body>
+<script>
+    function join_session(sessionId){ // Joins session, new or existing
+        var user = firebase.auth().currentUser
+        if (!user){
+            return
+        }
+        if (!sessionId){
+            var newSessionName = $("#newSessionName").val() || "My session"
+			// Create new session
+			var newSessionRef = database.ref('sessions/').push()
+			newSessionRef.set({
+				sessionName: newSessionName,
+                master: user.uid
+			}).then(function(){
+				var newSessionId = newSessionRef.toString().split("sessions/")[1]
+                window.history.pushState("", "", newSessionId)
+                show_game_view(newSessionId)
+			})
+		} else {
+            var sessionRef = database.ref("sessions/"+sessionId).once("value", function(snapshot){
+                var session = snapshot.val()
+                window.history.pushState("", "", sessionId)
+
+                var playerAlreadyInSession = false;
+                if (session.players){ // Only check if session has players
+                    Object.keys(session.players).forEach(function(key){
+                        if (key === user.uid){
+                            playerAlreadyInSession = true
+                        }
+                    })
+                }
+                // Don't join session as master OR if already in session
+                if (user.uid === session.master || playerAlreadyInSession){
+                    show_game_view(sessionId)
+                } 
+                else {
+                    // Player joins session
+                    var sessionRef = database.ref("sessions/"+sessionId+"/players/"+user.uid).set({
+                        points: 0,
+                        name: user.displayName || "anonymous",
+                        actions: [
+                            {
+                                action: "Juo 3",
+                                desc: "Sinun tulee juoda 3 annosta alkoholia :)",
+                                cost: 6
+                            },
+                            {
+                                action: "Juo 5",
+                                desc: "Sinun tulee juoda 5 annosta alkoholia :)",
+                                cost: 10
+                            },
+                            {
+                                action: "Vesiputous",
+                                desc: "Juo niin pitkään kuin haastajakin juo yhdellä kertaa",
+                                cost: 15
+                            },
+                            {
+                                action: "Ime Cullia",
+                                desc: "8===D",
+                                cost: 6
+                            }
+                        ]
+                    }).then(function(){           
+                        // Show game view in selected session
+                        show_game_view(sessionId)
+                    })
+                }
+            })
+		}
+    }
+
+    function show_game_view(sessionId){
+        var user = firebase.auth().currentUser
+        if (!user){
+            return
+        }
+
+        $("#sessions").addClass("hide")
+        $("#gameView").removeClass("hide")
+
+        // Get initial info from session
+        var sessionRef = database.ref("sessions/"+sessionId).once("value", function(snapshot){
+            var session = snapshot.val()
+            var master = session.master === user.uid ? true : false
+
+            $("#game_sessionName").html(session.sessionName)
+
+            if (master){
+                var playerList = session.players // Initial playerbase in session
+                // Start listening to changes in players, update playerList every time something changes
+                var sessionPlayersRef = database.ref("sessions/"+sessionId+"/players").on("value", function(snapshot){
+                    $("#players_list").html("")
+                    playerList = snapshot.val()
+                    Object.keys(playerList).forEach(function(key){
+                            var player = playerList[key]
+                            var playerEntry = $("<li class='box'>").html
+                                ('<i class="fa fa-user-o" aria-hidden="true"></i> '
+                                +player.name
+                                +"<span class='right'> "+player.points+"</span>")
+                            $("#players_list").append(playerEntry)
+                    })
+                })
+                // Create interval which increments points for each user
+                var increment_interval = setInterval(function(){
+                    if (!playerList){ // Nothing to increment
+                        return
+                    }
+                    Object.keys(playerList).forEach(function(key){
+                        // Update with transaction just in case
+                        var updatePlayerRef = database.ref("sessions/"+sessionId+"/players/"+key+"/points")
+                        updatePlayerRef.transaction(function(points){
+                            if (points || points == 0){
+                                points++
+                            } 
+                            return points
+                        })
+                    })
+                }, 2000)
+
+                $("#own_name").html("Master")
+                $("#own_points").html("∞")
+            } 
+            // Joined game as player
+            else {
+                // Listen to changes in session
+                var sessionCurrentRef = database.ref("sessions/"+sessionId).on("value", function(snapshot){
+                    $("#players_list").html("")
+
+                    var session_current = snapshot.val()
+                    // Go through players in session
+                    Object.keys(session_current.players).forEach(function(key){
+                        if (key === user.uid){ // It's me!
+                            var own = session_current.players[key]
+                            $("#own_points").html(own.points)
+                            $("#own_name").html(own.name)
+
+                            if (own.tasks){
+                                // Loop through tasks, pick first that's not completed
+                                for (var task in own.tasks){
+                                    if (own.tasks.hasOwnProperty(task)){
+                                        var k = task
+                                        var task = own.tasks[task]
+                                        if (!task.status){
+                                            $("#incoming_task").html("")
+                                            $("#incoming_task").html(task.action)
+
+                                            $("#reject_task_button").attr("task", k)
+                                            $("#accept_task_button").attr("task", k)
+                                            openTask()
+                                            return;
+                                        }
+                                    }
+                                }
+                            }
+                        } else { // Other player, add to list
+                            var player = session_current.players[key]
+                            var playerEntry = $("<li class='box'>").html
+                                ('<i class="fa fa-user-o" aria-hidden="true"></i> '
+                                +player.name
+                                +"<span class='right'> "+player.points+"</span>")
+                            playerEntry.on("click", function(){
+                                 select_player(key, sessionId, user.uid)
+                            })
+                            $("#players_list").append(playerEntry)
+                        }
+                    })
+                })
+            }
+        })
+    }
+    function select_player(player_uid, sessionId, own_uid){
+        // Get own actions
+        var sessionRef = database.ref("sessions/"+sessionId+"/players/"+own_uid+"/actions").once("value", function(snapshot){
+            $("#actions_list").html("")
+            var actions = snapshot.val()
+            // Loop through actions
+            Object.keys(actions).forEach(function(key){
+                var action = $("<p>").html(actions[key].action + "   >")
+                action.on("click", function(){
+                    select_action(actions[key], player_uid, sessionId)
+                })
+                $("#actions_list").append(action)                
+            })
+        })
+        openActions()
+    }
+    function select_action(action, player_uid, sessionId){
+        var newTaskRef = database.ref("sessions/"+sessionId+"/players/"+player_uid+"/tasks").push();
+        newTaskRef.set({
+            action: action.action,
+        }).then(function(){
+            closeActions()
+        })
+    }
+    function accept_task(){
+        var user = firebase.auth().currentUser
+        if (!user){
+            return
+        }
+        var task = $("#accept_task_button").attr("task")
+        var sessionId = window.location.pathname.substring(1)
+        var updateStatus = {
+            status: "Completed"
+        }
+        database.ref("sessions/"+sessionId+"/players/"+user.uid+"/tasks/"+task).update(updateStatus)
+        .then(function(){
+        })
+        closeTask()
+    }
+    function reject_task(){
+        var user = firebase.auth().currentUser
+        if (!user){
+            return
+        }
+        var task = $("#accept_task_button").attr("task")
+        var sessionId = window.location.pathname.substring(1)
+        var updateStatus = {
+            status: "Rejected"
+        }
+        database.ref("sessions/"+sessionId+"/players/"+user.uid+"/tasks/"+task).update(updateStatus)
+        .then(function(){
+        })
+        closeTask()
+    }
+
+    function get_session_list(){
+        // Listen for changes in sessions
+        var sessions = database.ref("sessions")
+        sessions.on("value", function(snapshot){
+            $("#sessions_list").html("")
+            var sessions = snapshot.val()
+            if (!sessions){
+                return
+            }
+            Object.keys(sessions).forEach(function(key){
+                var sessionName = sessions[key].sessionName
+                var sessionEntry = $("<li class='sessionEntry box' onclick='join_session(&quot"+key+"&quot)'>").html('<i class="fa fa-podcast" aria-hidden="true"></i>  ' + sessionName + "<span class='arrow'> ></span>")
+                $("#sessions_list").append(sessionEntry)
+            })
+        })
+    }
+
+    function signOut(){
+        firebase.auth().signOut().then(function() {
+            console.log('Signed Out');
+            $("#sessions_list").html()
+            $("#sessions").addClass("hide")
+            $("#signOutBtn").addClass("hide")
+            $("#firebaseui-auth-container").removeClass("hide")
+        })
+    }
+
+    function home(){
+        window.location.href = "/"
+    }
+
+    function openActions() {
+        $("#actions").css("width", "100%")
+    }
+    function closeActions() {
+        $("#actions").css("width", "0%")
+    }
+    function openTask(){
+        $("#task_overlay").css("width", "100%")
+    }
+    function closeTask(){
+        $("#task_overlay").css("width", "0%")
+    }
+    /*-----------------------------------------------------------*/
+    var socket = io.connect(window.location.origin)
+    document.addEventListener("DOMContentLoaded", function(event) { 
+        //join(window.location.pathname.substring(1))
+    });
+    function add_player_to_session(user, sessionId){
+        console.log(user.uid)
+        database.ref("players/"+user.uid).set({
+        }).then(function(){
+            console.log("Joined session")
+        })
+    }
+    socket.on("join_success", function(data){
+        window.history.pushState("", "", data.sessionId);
+    })
+    /*-----------------------------------------------------------*/
+</script>
+</html>

@@ -1,0 +1,23 @@
+{
+  "name": "peli",
+  "version": "1.0.0",
+  "description": "it's a game",
+  "main": "app.js",
+  "dependencies": {
+    "express": "^4.13.4",
+    "socket.io": "^1.4.5",
+    "minimist": "^1.2.0",
+    "nodemon": "^1.11.0",
+    "firebase": "^3.6.4",
+    "firebase-admin": "^4.0.4",
+    "firebaseui": "^1.0.0"
+  },
+  "scripts": {
+    "start": "node app.js"
+  },
+  "engines": {
+    "node": "5.9.0"
+  },
+  "author": "omistaja",
+  "license": "ISC"
+}
