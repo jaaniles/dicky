@@ -34,6 +34,9 @@
 
         </div>
         <div id="userFooter">
+            <div id="footerAlert" class="alert hide">
+                <span id="alertText"></span>
+            </div>
             <div>
                 <span class="left" id='own_name'></span>
                 <span class="right"><span id='own_points'></span>p</span>
@@ -55,8 +58,10 @@
     <div id="task_overlay" class="overlay">
         <div class="overlay-content">
             <p id="incoming_task"></p>
-            <button id="reject_task_button" onclick="reject_task()">Torju</button>
-            <button id="accept_task_button" onclick="accept_task()">Hyväksy</button>
+            <div id="task_buttons">
+                <button id="reject_task_button" onclick="reject_task()">Torju</button>
+                <button id="accept_task_button" onclick="accept_task()">Hyväksy</button>
+            </div>
         </div>
     </div>
 </body>
@@ -153,6 +158,9 @@
                 var sessionPlayersRef = database.ref("sessions/"+sessionId+"/players").on("value", function(snapshot){
                     $("#players_list").html("")
                     playerList = snapshot.val()
+                    if (!playerList){
+                        return
+                    }
                     Object.keys(playerList).forEach(function(key){
                             var player = playerList[key]
                             var playerEntry = $("<li class='box'>").html
@@ -186,6 +194,7 @@
             else {
                 // Listen to changes in session
                 var sessionCurrentRef = database.ref("sessions/"+sessionId).on("value", function(snapshot){
+                    console.log("Snap...")
                     $("#players_list").html("")
 
                     var session_current = snapshot.val()
@@ -197,20 +206,38 @@
                             $("#own_name").html(own.name)
 
                             if (own.tasks){
-                                // Loop through tasks, pick first that's not completed
+                                // Loop through tasks, pick first that's not accepted
                                 for (var task in own.tasks){
+                                    var keep_task_overlay_open = false
                                     if (own.tasks.hasOwnProperty(task)){
                                         var k = task
                                         var task = own.tasks[task]
                                         if (!task.status){
+                                            keep_task_overlay_open = true
+                                            // Found first task that has not been accepted
                                             $("#incoming_task").html("")
                                             $("#incoming_task").html(task.action)
+
+                                            $("#task_buttons").removeClass("hide")
 
                                             $("#reject_task_button").attr("task", k)
                                             $("#accept_task_button").attr("task", k)
                                             openTask()
-                                            return;
-                                        }
+
+                                            return
+                                        } else if (task.status === "Completed" && !task.validated){ 
+                                            keep_task_overlay_open = true
+                                            // Has been accepted (by me), not validated
+                                            $("#task_buttons").addClass("hide")
+                                            var wait_for_it_message = $("<div>").html("<p>"+task.action+"</p><p>Odota haastajan hyväksyntää..</p>")                
+                                            $("#incoming_task").html(wait_for_it_message)
+                                            openTask()
+
+                                            return
+                                        } 
+                                    }
+                                    if (keep_task_overlay_open == false){
+                                        closeTask()
                                     }
                                 }
                             }
@@ -252,6 +279,37 @@
             action: action.action,
         }).then(function(){
             closeActions()
+            showAlert("Odotetaan vastausta ...")
+            // Listen to changes in task status
+            database.ref("sessions/"+sessionId+"/players/"+player_uid+"/tasks/"+newTaskRef.key)
+            .child("status")
+            .on("value", function(snapshot){
+                var status = snapshot.val()
+                if (status === "Completed"){
+                    // Create a message with a validation button into footerAlert
+                    var validate_task_div = $("<div>")
+                    var validate_task_text = $("<p>").html("Vahvista, kun tehtävä on suoritettu")
+                    var validate_task_button = $("<button id='validate_task_button'>Vahvista</button>")
+                    validate_task_button.on("click", function(){
+                        var taskPath = "sessions/"+sessionId+"/players/"+player_uid+"/tasks/"+newTaskRef.key
+                        validate_task(taskPath)
+                    })
+                    validate_task_div.append(validate_task_text)
+                    validate_task_div.append(validate_task_button)
+                    showAlert(validate_task_div)
+                } else if (status === "Rejected"){
+                    hideAlert()
+                }
+            })
+        })
+    }
+    function validate_task(taskPath){
+        var updateValidation = {
+            validated: true
+        }
+        database.ref(taskPath).update(updateValidation)
+        .then(function(){
+            hideAlert()
         })
     }
     function accept_task(){
@@ -267,7 +325,6 @@
         database.ref("sessions/"+sessionId+"/players/"+user.uid+"/tasks/"+task).update(updateStatus)
         .then(function(){
         })
-        closeTask()
     }
     function reject_task(){
         var user = firebase.auth().currentUser
@@ -284,7 +341,6 @@
         })
         closeTask()
     }
-
     function get_session_list(){
         // Listen for changes in sessions
         var sessions = database.ref("sessions")
@@ -315,7 +371,13 @@
     function home(){
         window.location.href = "/"
     }
-
+    function showAlert(text){
+        $("#footerAlert").removeClass("hide")
+        $("#alertText").html(text)
+    }
+    function hideAlert(){
+        $("#footerAlert").addClass("hide")
+    }
     function openActions() {
         $("#actions").css("width", "100%")
     }
@@ -328,7 +390,7 @@
     function closeTask(){
         $("#task_overlay").css("width", "0%")
     }
-    /*-----------------------------------------------------------*/
+    /*------------------KAUHISTUS MITEN PASKOJA FUNKTIOITA, POISTOON--------------------------*/
     var socket = io.connect(window.location.origin)
     document.addEventListener("DOMContentLoaded", function(event) { 
         //join(window.location.pathname.substring(1))
@@ -343,6 +405,12 @@
     socket.on("join_success", function(data){
         window.history.pushState("", "", data.sessionId);
     })
-    /*-----------------------------------------------------------*/
+    function createAlert(text){
+        var alert = '<div class="alert">'
+        +text
+        +'</div>'
+        return alert
+    }
+    /*------------------KAUHISTUS MITEN PASKOJA FUNKTIOITA, POISTOON--------------------------*/
 </script>
 </html>

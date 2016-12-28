@@ -103,3 +103,10 @@ a:hover {
 a:active {
     color: gray;
 }
+.alert {
+    padding: 20px;
+    background-color: #f44336; /* Red */
+    border: 2px solid black;
+    color: white;
+    margin-bottom: 15px;
+}
