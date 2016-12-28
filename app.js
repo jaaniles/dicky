@@ -32,6 +32,7 @@ app.use(function(req, res, next) {
 	})
 })
 
+/* No longer needed since going 'serverless'
 io.on('connection', function(socket){
 	// Someone joins the system
 	socket.on("join", function(data){
@@ -64,7 +65,7 @@ io.on('connection', function(socket){
 		})
 	}
 })
-
+*/
 
 server.listen(PORT, HOST);
 console.log("Have fun at port :: " + PORT)
