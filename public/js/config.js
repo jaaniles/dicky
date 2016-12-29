@@ -1,0 +1,1 @@
+const TASK_EXPIRE_TIME = 10 // In seconds

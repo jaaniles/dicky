@@ -43,6 +43,12 @@ function openTask(){
 function closeTask(){
     $("#task_overlay").css("width", "0%")
 }
+function openSettings(){
+    $("#settings_overlay").css("width", "100%")
+}
+function closeSettings(){
+    $("#settings_overlay").css("width", "0%")
+}
 
     /*--------------------------------------------*/
     /*

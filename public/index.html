@@ -9,6 +9,7 @@
     <script src="https://cdn.firebase.com/libs/firebaseui/1.0.0/firebaseui.js"></script>
     <script src="/js/firebase-init.js"></script>
     <script src="/js/utils.js"></script>
+    <script src="/js/config.js"></script>
     <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
     <link type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/1.0.0/firebaseui.css" />
     <link href="https://fonts.googleapis.com/css?family=Delius+Swash+Caps" rel="stylesheet">
@@ -19,7 +20,7 @@
 </head>
 <style>
     #bleh{
-        margin-top: 1500px;
+        margin-top: 600px;
     }
 </style>
 <body>
@@ -30,24 +31,27 @@
     </div>
     <div id="gameView" class="hide">
         <h2 style="text-align: center" id='game_sessionName'></h2>
-        <div id="players_list">
-
+        <div id="players_list"></div>
         </div>
+
+        <!-- Alert -->
+        <div id="footerAlert" class="top-alert hide">
+            <span id="alertText"></span>
+        </div>
+
+        <!-- Footer -->
         <div id="userFooter">
-            <div id="footerAlert" class="alert hide">
-                <span id="alertText"></span>
+            <div class="footer_name">
+                <span id='own_name'></span>
             </div>
-            <div>
-                <span class="left" id='own_name'></span>
-                <span class="right"><span id='own_points'></span>p</span>
+            <div class="absolute-center" onclick="openSettings()">
+                <i class="fa fa-bars" aria-hidden="true"></i>
+            </div>
+            <div class="footer_points">
+                <span><span id='own_points'>0</span>p</span>
             </div>
         </div>
     </div>
-    <div id="bleh" class="">
-        <input type="text" id="newSessionName"><button onClick="join_session()">Create new session</button>
-        <button onclick='signOut()' id="signOutBtn" class="hide">Log out</button>
-    </div>
-
     <!-- Actions overlay-->
     <div id="actions" class="overlay">
         <p class="closebtn" onclick="closeActions()">&times;</a>
@@ -59,15 +63,25 @@
         <div class="overlay-content">
             <p id="incoming_task"></p>
             <div id="task_buttons">
-                <button id="reject_task_button" onclick="reject_task()">Torju</button>
-                <button id="accept_task_button" onclick="accept_task()">Hyväksy</button>
+                <button id="accept_task_button" onclick="accept_task()" class="ui-btn btn-accept">Hyväksy</button>
+                <button id="reject_task_button" onclick="reject_task()" class="ui-btn btn-reject">Torju</button>
             </div>
+        </div>
+    </div>
+    <!-- Settings overlay -->
+    <div id="settings_overlay" class="overlay">
+        <p class="closebtn" onclick="closeSettings()">&times;</a>
+        <div class="overlay-content">
+            <div style="display:inline">
+                <input type="text" id="newSessionName" class="ui-input" placeholder="Session name">
+                <button onClick="join_session()" class="ui-btn btn-accept">Create new session</button>
+            </div>
+            <hr>
+            <button onclick='signOut()' id="signOutBtn" class="hide ui-btn btn-accept">Log out</button>
         </div>
     </div>
 </body>
 <script>
-    const TASK_EXPIRE_TIME = 10 // In seconds
-
     function join_session(sessionId){ // Joins session, new or existing
         var user = firebase.auth().currentUser
         if (!user){
@@ -75,6 +89,7 @@
         }
         if (!sessionId){
             var newSessionName = $("#newSessionName").val() || "My session"
+            $("#newSessionName").val("")
 			// Create new session
 			var newSessionRef = database.ref('sessions/').push()
 			newSessionRef.set({
@@ -387,7 +402,7 @@
         // Create a message with a validation button into footerAlert
         var validate_task_div = $("<div>")
         var validate_task_text = $("<p>").html("Vahvista, kun tehtävä on suoritettu")
-        var validate_task_button = $("<button id='validate_task_button'>Vahvista</button>")
+        var validate_task_button = $("<button id='validate_task_button' class='ui-btn btn-accept'>Vahvista</button>")
         validate_task_button.on("click", function(){
             validate_task(taskPath)
         })

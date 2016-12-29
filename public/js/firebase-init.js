@@ -35,6 +35,8 @@ initApp = function() {
         $("#sessions").removeClass("hide")
         $("#signOutBtn").removeClass("hide")
 
+        $("#own_name").html(displayName)
+
         user.getToken().then(function(accessToken) {
             get_session_list()
         });
