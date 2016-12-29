@@ -18,6 +18,8 @@ function signOut(){
         $("#sessions").addClass("hide")
         $("#signOutBtn").addClass("hide")
         $("#firebaseui-auth-container").removeClass("hide")
+
+        closeSettings()
     })
 }
 

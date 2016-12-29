@@ -55,16 +55,17 @@
     <!-- Actions overlay-->
     <div id="actions" class="overlay">
         <p class="closebtn" onclick="closeActions()">&times;</a>
-        <div class="overlay-content" id='actions_list'>
+        <div class="overlay-content" id='actions_list'></div>
         </div>
     </div>
     <!-- Task overlay-->
     <div id="task_overlay" class="overlay">
         <div class="overlay-content">
             <p id="incoming_task"></p>
+            <span>"</span><blockquote id="task_desc">Looool</blockquote><span>"</span>
             <div id="task_buttons">
-                <button id="accept_task_button" onclick="accept_task()" class="ui-btn btn-accept">Hyväksy</button>
-                <button id="reject_task_button" onclick="reject_task()" class="ui-btn btn-reject">Torju</button>
+                <button id="accept_task_button" onclick="accept_task()" class="ui-btn btn-accept">Hyväksy <i class="fa fa-angle-double-right" aria-hidden="true"></i></button>
+                <button id="reject_task_button" onclick="reject_task()" class="ui-btn btn-reject">Torju <i class="fa fa-angle-double-right" aria-hidden="true"></i></button>
             </div>
         </div>
     </div>
@@ -72,16 +73,33 @@
     <div id="settings_overlay" class="overlay">
         <p class="closebtn" onclick="closeSettings()">&times;</a>
         <div class="overlay-content">
-            <div style="display:inline">
-                <input type="text" id="newSessionName" class="ui-input" placeholder="Session name">
-                <button onClick="join_session()" class="ui-btn btn-accept">Create new session</button>
+            <div id="namechange_div" class="hide">
+                <input type="text" id="newName" class="ui-input" placeholder="Uusi nimi">
+                <button onClick="change_name()" class="ui-btn btn-accept">Vaihda nimi <i class="fa fa-angle-double-right" aria-hidden="true"></i></button>
+            </div>
+            <div id="session_div">
+                <input type="text" id="newSessionName" class="ui-input" placeholder="Pelihuoneen nimi">
+                <button onClick="join_session()" class="ui-btn btn-accept">Luo pelihuone<i class="fa fa-angle-double-right" aria-hidden="true"></i></button>
             </div>
             <hr>
-            <button onclick='signOut()' id="signOutBtn" class="hide ui-btn btn-accept">Log out</button>
+            <button onclick='signOut()' id="signOutBtn" class="hide ui-btn btn-accept">Log out <i class="fa fa-angle-double-right" aria-hidden="true"></i></button>
         </div>
     </div>
 </body>
 <script>
+    function change_name(){
+        var user = getUser()
+        var sessionId = window.location.pathname.substring(1)
+        // Update name
+        var updateName = {
+            name: $("#newName").val()
+        }
+        database.ref("sessions/"+sessionId+"/players/"+user.uid).update(updateName)
+        .then(function(){
+            closeSettings()
+        })
+
+    }
     function join_session(sessionId){ // Joins session, new or existing
         var user = firebase.auth().currentUser
         if (!user){
@@ -90,6 +108,7 @@
         if (!sessionId){
             var newSessionName = $("#newSessionName").val() || "My session"
             $("#newSessionName").val("")
+            closeSettings()
 			// Create new session
 			var newSessionRef = database.ref('sessions/').push()
 			newSessionRef.set({
@@ -154,6 +173,8 @@
     }
 
     function show_game_view(sessionId){
+        $("#namechange_div").removeClass("hide")
+        $("#session_div").addClass("hide")
         var user = getUser()
         if (!user){
             return
@@ -256,10 +277,15 @@
                                         var k = task
                                         var task = own.tasks[task]
                                         if (!task.status){
+                                            // Check if task has expired
+                                            if (Math.floor(Date.now() / 1000) > task.expires) {
+                                                reject_task()
+                                            } 
                                             keep_task_overlay_open = true
                                             // Found first task that has not been accepted
                                             $("#incoming_task").html("")
                                             $("#incoming_task").html(task.action)
+                                            $("#task_desc").html(task.desc)
 
                                             $("#task_buttons").removeClass("hide")
 
@@ -291,9 +317,9 @@
                         } else { // Other player, add to list
                             var player = session_current.players[key]
                             var playerEntry = $("<li class='box'>").html
-                                ('<i class="fa fa-user-o" aria-hidden="true"></i> '
+                                ('<span class="vertical-align" <i class="fa fa-user-o" aria-hidden="true"></i> '
                                 +player.name
-                                +"<span class='right'> "+player.points+"</span>")
+                                +"<span class='right'> "+player.points+"</span></span>")
                             playerEntry.on("click", function(){
                                  select_player(key, sessionId, user.uid)
                             })
@@ -311,7 +337,7 @@
             var actions = snapshot.val()
             // Loop through actions
             Object.keys(actions).forEach(function(key){
-                var action = $("<p>").html(actions[key].action + "   >")
+                var action = $("<p>").html(actions[key].action + " <i class='fa fa-angle-double-right' aria-hidden='true'></i>")
                 action.on("click", function(){
                     select_action(actions[key], player_uid, sessionId)
                 })
@@ -326,7 +352,9 @@
         var newTaskRef = database.ref("sessions/"+sessionId+"/players/"+player_uid+"/tasks").push();
         newTaskRef.set({
             action: action.action,
-            issuer: user.uid
+            desc: action.desc,
+            issuer: user.uid,
+            expires: ( Math.floor(Date.now() / 1000) ) + TASK_EXPIRE_TIME_INITIAL
         }).then(function(){
             closeActions()
             showAlert("Odotetaan vastausta ...")
@@ -361,7 +389,7 @@
         var sessionId = window.location.pathname.substring(1)
         var updateStatus = {
             status: "Accepted",
-            expires: ( Math.floor(Date.now() / 1000) ) + TASK_EXPIRE_TIME // Unix timestamp + 60 seconds
+            expires: ( Math.floor(Date.now() / 1000) ) + TASK_EXPIRE_TIME_ACCEPTED
         }
         database.ref("sessions/"+sessionId+"/players/"+user.uid+"/tasks/"+taskKey).update(updateStatus)
         .then(function(){
@@ -393,7 +421,7 @@
             }
             Object.keys(sessions).forEach(function(key){
                 var sessionName = sessions[key].sessionName
-                var sessionEntry = $("<li class='sessionEntry box' onclick='join_session(&quot"+key+"&quot)'>").html('<i class="fa fa-podcast" aria-hidden="true"></i>  ' + sessionName + "<span class='arrow'> ></span>")
+                var sessionEntry = $("<li class='sessionEntry box' onclick='join_session(&quot"+key+"&quot)'>").html('<span class="vertical-align"><i class="fa fa-podcast" aria-hidden="true"></i>  ' + sessionName + " <i class='fa fa-angle-double-right' aria-hidden='true'></i></span>")
                 $("#sessions_list").append(sessionEntry)
             })
         })
@@ -402,7 +430,7 @@
         // Create a message with a validation button into footerAlert
         var validate_task_div = $("<div>")
         var validate_task_text = $("<p>").html("Vahvista, kun tehtävä on suoritettu")
-        var validate_task_button = $("<button id='validate_task_button' class='ui-btn btn-accept'>Vahvista</button>")
+        var validate_task_button = $("<button id='validate_task_button' class='ui-btn btn-accept'>Vahvista <i class='fa fa-angle-double-right' aria-hidden='true'></i></button>")
         validate_task_button.on("click", function(){
             validate_task(taskPath)
         })
