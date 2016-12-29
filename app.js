@@ -67,5 +67,5 @@ io.on('connection', function(socket){
 })
 */
 
-server.listen(PORT, HOST);
+server.listen(PORT);
 console.log("Have fun at port :: " + PORT)
