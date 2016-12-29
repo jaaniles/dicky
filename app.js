@@ -18,8 +18,8 @@ var config = {
 firebase.initializeApp(config);
 var database = firebase.database()
 
-const PORT = args.port || 3000
-const HOST = args.host || '192.168.0.14'
+const PORT = process.env.PORT || 3000
+const HOST = process.env.HOST || '192.168.0.14'
 
 app.use(function(req, res, next) {
 	const fpath = path.join(__dirname + '/public', req.path)
