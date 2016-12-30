@@ -47,6 +47,9 @@ body {
         display: table-cell;
         vertical-align: middle;
     }
+    .push{
+        height: 50px;
+    }
     #userFooter{
         position: fixed;
         right: 0;
@@ -56,7 +59,6 @@ body {
         background-color: #e74c3c;
         text-align: center;
     }
-
     /* Make buttons humongous */
     .ui-btn, .ui-input{
         box-shadow: 0 1px 3px 0 rgba(0,0,0,0.2),0 1px 1px 0 rgba(0,0,0,0.14),0 2px 1px -1px rgba(0,0,0,0.12);
@@ -106,6 +108,13 @@ body {
         border-color: #DFF2BF;
     }
 }
+.action-list-action{
+    transition: 0.3s;
+}
+.action-list-action:hover{
+   color: #4F8A10 !important; 
+   cursor: pointer;
+}
 .center{
     text-align: center;
 }
@@ -138,7 +147,12 @@ blockquote p {
     bottom: 2px;
     right: 2%;
 }
-
+.right{
+    text-align: right;
+}
+.sessionName{
+    font-size: 14px;
+}
 #sessions{
     margin-top: 50px;
 }

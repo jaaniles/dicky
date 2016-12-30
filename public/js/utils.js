@@ -22,6 +22,25 @@ function signOut(){
         closeSettings()
     })
 }
+function change_name(){
+    var user = getUser()
+    var sessionId = window.location.pathname.substring(1)
+    var sessionRef = database.ref("sessions/"+sessionId).once("value", function(snapshot){
+        var session = snapshot.val()
+        if (session.master === user.uid){
+            closeSettings()
+            return
+        }
+        // Update name
+        var updateName = {
+            name: $("#newName").val()
+        }
+        database.ref("sessions/"+sessionId+"/players/"+user.uid).update(updateName)
+        .then(function(){
+            closeSettings()
+        })
+    })
+}
 
 function home(){
     window.location.href = "/"

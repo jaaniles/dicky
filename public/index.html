@@ -24,21 +24,23 @@
     }
 </style>
 <body>
-    <h2 class="title" onclick='home()'>Dicky</h2>
+    <div class="content">
+    </div>
+    <h2 class="title" onclick='home()'>Dicky <span id="game_sessionName" class="right sessionName"></span></span></h2>
+    <!--<h2 style="text-align: center" id='game_sessionName'></h2>-->
     <div id="firebaseui-auth-container"></div>
     <div id="sessions" class="hide">
         <div id="sessions_list"></div>
     </div>
     <div id="gameView" class="hide">
-        <h2 style="text-align: center" id='game_sessionName'></h2>
         <div id="players_list"></div>
         </div>
 
-        <!-- Alert -->
         <div id="footerAlert" class="top-alert hide">
             <span id="alertText"></span>
         </div>
 
+        <div class="push"></div>
         <!-- Footer -->
         <div id="userFooter">
             <div class="footer_name">
@@ -52,9 +54,11 @@
             </div>
         </div>
     </div>
+
     <!-- Actions overlay-->
     <div id="actions" class="overlay">
         <p class="closebtn" onclick="closeActions()">&times;</a>
+        <p class="overlay-points"><span id="overlay-points">0</span>p</p>
         <div class="overlay-content" id='actions_list'></div>
         </div>
     </div>
@@ -87,19 +91,6 @@
     </div>
 </body>
 <script>
-    function change_name(){
-        var user = getUser()
-        var sessionId = window.location.pathname.substring(1)
-        // Update name
-        var updateName = {
-            name: $("#newName").val()
-        }
-        database.ref("sessions/"+sessionId+"/players/"+user.uid).update(updateName)
-        .then(function(){
-            closeSettings()
-        })
-
-    }
     function join_session(sessionId){ // Joins session, new or existing
         var user = firebase.auth().currentUser
         if (!user){
@@ -145,23 +136,39 @@
                             {
                                 action: "Juo 3",
                                 desc: "Sinun tulee juoda 3 annosta alkoholia :)",
-                                cost: 6
+                                cost: 6,
+                                reject_cost: 6
                             },
                             {
                                 action: "Juo 5",
                                 desc: "Sinun tulee juoda 5 annosta alkoholia :)",
-                                cost: 10
+                                cost: 10,
+                                reject_cost: 10
                             },
                             {
                                 action: "Vesiputous",
                                 desc: "Juo niin pitkään kuin haastajakin juo yhdellä kertaa",
-                                cost: 15
+                                cost: 15,
+                                reject_cost: 15
                             },
                             {
                                 action: "Ime Cullia",
                                 desc: "8===D",
-                                cost: 6
-                            }
+                                cost: 6,
+                                reject_cost: 6
+                            },
+                            {
+                                action: "Heitä voltti",
+                                desc: "vaikka ympäri",
+                                cost: 100,
+                                reject_cost: 5
+                            },
+                            {
+                                action: "Mahdoton",
+                                desc: "Tehtävä",
+                                cost: 9999,
+                                reject_cost: 5
+                            },
                         ]
                     }).then(function(){           
                         // Show game view in selected session
@@ -173,7 +180,6 @@
     }
 
     function show_game_view(sessionId){
-        $("#namechange_div").removeClass("hide")
         $("#session_div").addClass("hide")
         var user = getUser()
         if (!user){
@@ -230,6 +236,7 @@
             } 
             // Joined game as player
             else {
+                $("#namechange_div").removeClass("hide")
                 // Listen to changes in session
                 var sessionCurrentRef = database.ref("sessions/"+sessionId).on("value", function(snapshot){
                     $("#players_list").html("")
@@ -240,6 +247,7 @@
                         if (key === user.uid){ // It's me!
                             var own = session_current.players[key]
                             $("#own_points").html(own.points)
+                            $("#overlay-points").html(own.points)
                             $("#own_name").html(own.name)
                             
                             // Check if there's any "Accepted" tasks which are waiting for last confirmation
@@ -252,12 +260,11 @@
                                             if (player_tasks.hasOwnProperty(task)){
                                                 var player_task = player_tasks[task]
                                                 if (player_task.issuer === user.uid && player_task.status === "Accepted"){
-                                                    var taskPath = "sessions/"+sessionId+"/players/"+player+"/tasks/"+task
                                                     if (Math.floor(Date.now() / 1000) > player_task.expires) {
-                                                        validate_task(taskPath)
+                                                        validate_task(sessionId, player, task)
                                                         hideAlert()
                                                     } else {
-                                                        showAlert(create_validate_alert(taskPath))
+                                                        showAlert(create_validate_alert(sessionId, player, task))
                                                     }
                                                     return
                                                 }
@@ -297,7 +304,7 @@
                                         } else if (task.status === "Accepted"){
                                             // Check if task has expired
                                             if (Math.floor(Date.now() / 1000) > task.expires) {
-                                                validate_task("sessions/"+sessionId+"/players/"+user.uid+"/tasks/"+k)
+                                                validate_task(sessionId, user.uid, k)
                                             } 
                                             keep_task_overlay_open = true
                                             // Has been accepted (by me), not completed
@@ -337,7 +344,7 @@
             var actions = snapshot.val()
             // Loop through actions
             Object.keys(actions).forEach(function(key){
-                var action = $("<p>").html(actions[key].action + " <i class='fa fa-angle-double-right' aria-hidden='true'></i>")
+                var action = $("<p class='action-list-action'>").html("<span>"+ actions[key].action + " ( -"+actions[key].cost+"p ) </span> <i class='fa fa-angle-double-right' aria-hidden='true'></i>")
                 action.on("click", function(){
                     select_action(actions[key], player_uid, sessionId)
                 })
@@ -347,39 +354,49 @@
         openActions()
     }
     function select_action(action, player_uid, sessionId){
-        // Add issued action to issuer
         var user = getUser()
-        var newTaskRef = database.ref("sessions/"+sessionId+"/players/"+player_uid+"/tasks").push();
-        newTaskRef.set({
-            action: action.action,
-            desc: action.desc,
-            issuer: user.uid,
-            expires: ( Math.floor(Date.now() / 1000) ) + TASK_EXPIRE_TIME_INITIAL
-        }).then(function(){
-            closeActions()
-            showAlert("Odotetaan vastausta ...")
-            // Listen to changes in task status
-            database.ref("sessions/"+sessionId+"/players/"+player_uid+"/tasks/"+newTaskRef.key)
-            .child("status")
-            .on("value", function(snapshot){
-                var status = snapshot.val()
-                if (status === "Accepted"){
-                    var taskPath = "sessions/"+sessionId+"/players/"+player_uid+"/tasks/"+newTaskRef.key
-                    showAlert(create_validate_alert(taskPath))
-                } else if (status === "Rejected"){
-                    // Should probably indicate rejection somehow
-                    hideAlert()
-                }
-            })
+        var getPlayer = get_player(sessionId, user.uid).then(function(player){
+            if (player.points > action.cost){
+                // Add issued action to issuer
+                var newTaskRef = database.ref("sessions/"+sessionId+"/players/"+player_uid+"/tasks").push();
+                newTaskRef.set({
+                    action: action.action,
+                    desc: action.desc,
+                    issuer: user.uid,
+                    expires: ( Math.floor(Date.now() / 1000) ) + TASK_EXPIRE_TIME_INITIAL,
+                    cost: action.cost,
+                    reject_cost: action.reject_cost
+                }).then(function(){
+                    closeActions()
+                    showAlert("Odotetaan vastausta ...")
+                    // Listen to changes in task status
+                    database.ref("sessions/"+sessionId+"/players/"+player_uid+"/tasks/"+newTaskRef.key)
+                    .child("status")
+                    .on("value", function(snapshot){
+                        var status = snapshot.val()
+                        if (status === "Accepted"){
+                            var taskPath = "sessions/"+sessionId+"/players/"+player_uid+"/tasks/"+newTaskRef.key
+                            showAlert(create_validate_alert(sessionId, player_uid, newTaskRef.key))
+                        } else if (status === "Rejected"){
+                            // Should probably indicate rejection somehow
+                            hideAlert()
+                        }
+                    })
+                })
+            }
         })
     }
-    function validate_task(taskPath){
+    function validate_task(sessionId, uid, taskKey){
         // Update task to completed
         var updateValidation = {
             status: "Completed"
         }
-        database.ref(taskPath).update(updateValidation)
+        database.ref("sessions/"+sessionId+"/players/"+uid+"/tasks/"+taskKey).update(updateValidation)
         .then(function(){
+            var getTask = get_task(sessionId, uid, taskKey).then(function(task){
+                $("#validate_task_button").remove()
+                increase_points(sessionId, uid, task.cost)
+            })
             hideAlert()
         })
     }
@@ -393,22 +410,72 @@
         }
         database.ref("sessions/"+sessionId+"/players/"+user.uid+"/tasks/"+taskKey).update(updateStatus)
         .then(function(){
+            var getTask = get_task(sessionId, user.uid, taskKey).then(function(task){
+                decrease_points(sessionId, task.issuer, task.cost)
+            })
         })
     }
+    function decrease_points(sessionId, uid, cost){
+        var playerPointsRef = database.ref("sessions/"+sessionId+"/players/"+uid+"/points")
+        playerPointsRef.transaction(function(points){
+            if (points || points == 0){
+                points = Math.max(points - cost, 0)
+            } 
+            return points
+        })
+    }
+    function increase_points(sessionId, uid, increase){
+        var playerPointsRef = database.ref("sessions/"+sessionId+"/players/"+uid+"/points")
+        playerPointsRef.transaction(function(points){
+            if (points || points == 0){
+                points += increase
+            } 
+            return points
+        })       
+    }
+    // Rejects task at hand
     function reject_task(){
         var user = firebase.auth().currentUser
         if (!user){
             return
         }
-        var task = $("#accept_task_button").attr("task")
+        var taskKey = $("#accept_task_button").attr("task")
         var sessionId = window.location.pathname.substring(1)
         var updateStatus = {
             status: "Rejected"
         }
-        database.ref("sessions/"+sessionId+"/players/"+user.uid+"/tasks/"+task).update(updateStatus)
+        database.ref("sessions/"+sessionId+"/players/"+user.uid+"/tasks/"+taskKey).update(updateStatus)
         .then(function(){
+            var getTask = get_task(sessionId, user.uid, taskKey).then(function(task){
+                decrease_points(sessionId, task.issuer, task.cost)
+                decrease_points(sessionId, user.uid, task.reject_cost)
+            })
         })
         closeTask()
+    }
+    function get_task(sessionId, uid, taskKey){
+        return new Promise(function(resolve, reject){
+            var taskRef = database.ref("sessions/"+sessionId+"/players/"+uid+"/tasks/"+taskKey).once("value", function(snapshot){
+                var task = snapshot.val()
+                if (task){
+                    resolve(task)
+                } else {
+                    reject("Task not found")
+                }
+            })
+        })
+    }
+    function get_player(sessionId, uid){
+        return new Promise(function(resolve, reject){
+            var playerRef = database.ref("sessions/"+sessionId+"/players/"+uid).once("value", function(snapshot){
+                var player = snapshot.val()
+                if (player){
+                    resolve(player)
+                } else {
+                    reject("Player not found")
+                }
+            })
+        })
     }
     function get_session_list(){
         // Listen for changes in sessions
@@ -426,13 +493,13 @@
             })
         })
     }
-    function create_validate_alert(taskPath){
+    function create_validate_alert(sessionId, uid, taskKey){
         // Create a message with a validation button into footerAlert
         var validate_task_div = $("<div>")
         var validate_task_text = $("<p>").html("Vahvista, kun tehtävä on suoritettu")
         var validate_task_button = $("<button id='validate_task_button' class='ui-btn btn-accept'>Vahvista <i class='fa fa-angle-double-right' aria-hidden='true'></i></button>")
         validate_task_button.on("click", function(){
-            validate_task(taskPath)
+            validate_task(sessionId, uid, taskKey)
         })
         validate_task_div.append(validate_task_text)
         validate_task_div.append(validate_task_button)
