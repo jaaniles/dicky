@@ -58,6 +58,9 @@ function openActions() {
 function closeActions() {
     $("#actions").css("width", "0%")
 }
+function closeGractions(){
+    $("#gractions").css("width", "0%")
+}
 function openTask(){
     $("#task_overlay").css("width", "100%")
 }
@@ -69,6 +72,12 @@ function openSettings(){
 }
 function closeSettings(){
     $("#settings_overlay").css("width", "0%")
+}
+function openIncGractions(){
+    $("#inc_gractions_overlay").css("width", "100%")
+}
+function closeIncGractions(){
+    $("#inc_gractions_overlay").css("width", "0%")
 }
 
     /*--------------------------------------------*/

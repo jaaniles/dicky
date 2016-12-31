@@ -26,8 +26,7 @@
 <body>
     <div class="content">
     </div>
-    <h2 class="title" onclick='home()'>Dicky <span id="game_sessionName" class="right sessionName"></span></span></h2>
-    <!--<h2 style="text-align: center" id='game_sessionName'></h2>-->
+    <h2 class="title">Dicky <span id="game_sessionName" class="right sessionName"></span></span></h2>
     <div id="firebaseui-auth-container"></div>
     <div id="sessions" class="hide">
         <div id="sessions_list"></div>
@@ -35,23 +34,27 @@
     <div id="gameView" class="hide">
         <div id="players_list"></div>
         </div>
-
         <div id="footerAlert" class="top-alert hide">
             <span id="alertText"></span>
         </div>
-
+        <button class="ui-btn hide" id="graction-done-button" onclick="complete_graction()">Ryhmätehtävä suoritettu</button>
         <div class="push"></div>
         <!-- Footer -->
         <div id="userFooter">
             <div class="footer_name">
-                <span id='own_name'></span>
+                <span id='own_name'>
+                </span>
             </div>
-            <div class="absolute-center" onclick="openSettings()">
-                <i class="fa fa-bars" aria-hidden="true"></i>
+            <div class="absolute-center settings-icon" onclick="openSettings()">
+                <i class="fa fa-bars fa-2x" aria-hidden="true"></i>
             </div>
             <div class="footer_points">
                 <span><span id='own_points'>0</span>p</span>
             </div>
+        </div>
+        <!-- Graction Icon -->
+        <div id="gractions-icon" class="gractions-icon hide" onclick="openGractions()">
+            <i class="fa fa-users fa-2x" aria-hidden="true"></i>
         </div>
     </div>
 
@@ -62,11 +65,29 @@
         <div class="overlay-content" id='actions_list'></div>
         </div>
     </div>
+    <!-- Group Actions overlay-->
+    <div id="gractions" class="overlay">
+        <p class="closebtn" onclick="closeGractions()">&times;</a>
+        <p class="overlay-points"><span id="overlay-points">0</span>p</p>
+        <div class="overlay-content" id='gractions_list'></div>
+        </div>
+    </div>
+    <!-- Incoming gractions overlay -->
+    <div id="inc_gractions_overlay" class="overlay">
+        <div class="overlay-content">
+            <p id="incoming_graction"></p>
+            <span>"</span><blockquote id="graction_desc"></blockquote><span>"</span>
+            <div id="graction_buttons">
+                <button id="accept_graction_button" onclick="accept_graction()" class="ui-btn btn-accept">Hyväksy <i class="fa fa-angle-double-right" aria-hidden="true"></i></button>
+                <button id="graction_button" onclick="reject_graction()" class="ui-btn btn-reject">Torju <i class="fa fa-angle-double-right" aria-hidden="true"></i></button>
+            </div>
+        </div>
+    </div>
     <!-- Task overlay-->
     <div id="task_overlay" class="overlay">
         <div class="overlay-content">
             <p id="incoming_task"></p>
-            <span>"</span><blockquote id="task_desc">Looool</blockquote><span>"</span>
+            <span>"</span><blockquote id="task_desc"></blockquote><span>"</span>
             <div id="task_buttons">
                 <button id="accept_task_button" onclick="accept_task()" class="ui-btn btn-accept">Hyväksy <i class="fa fa-angle-double-right" aria-hidden="true"></i></button>
                 <button id="reject_task_button" onclick="reject_task()" class="ui-btn btn-reject">Torju <i class="fa fa-angle-double-right" aria-hidden="true"></i></button>
@@ -76,6 +97,7 @@
     <!-- Settings overlay -->
     <div id="settings_overlay" class="overlay">
         <p class="closebtn" onclick="closeSettings()">&times;</a>
+        <h2 class="title" onclick='home()'>Dicky</h2>
         <div class="overlay-content">
             <div id="namechange_div" class="hide">
                 <input type="text" id="newName" class="ui-input" placeholder="Uusi nimi">
@@ -86,7 +108,7 @@
                 <button onClick="join_session()" class="ui-btn btn-accept">Luo pelihuone<i class="fa fa-angle-double-right" aria-hidden="true"></i></button>
             </div>
             <hr>
-            <button onclick='signOut()' id="signOutBtn" class="hide ui-btn btn-accept">Log out <i class="fa fa-angle-double-right" aria-hidden="true"></i></button>
+            <button onclick='signOut()' id="signOutBtn" class="hide ui-btn btn-accept">Kirjaudu ulos <i class="fa fa-angle-double-right" aria-hidden="true"></i></button>
         </div>
     </div>
 </body>
@@ -97,14 +119,31 @@
             return
         }
         if (!sessionId){
-            var newSessionName = $("#newSessionName").val() || "My session"
+            var newSessionName = $("#newSessionName").val() || "Uusi peli"
             $("#newSessionName").val("")
             closeSettings()
 			// Create new session
 			var newSessionRef = database.ref('sessions/').push()
 			newSessionRef.set({
 				sessionName: newSessionName,
-                master: user.uid
+                master: user.uid,
+                gractionsList: [
+                    {
+                        graction: "Vesiputous kaikille",
+                        desc: "Kaikki juovat niin pitkään kun haastajakin juo yhdellä kertaa",
+                        cost: 1000
+                    },
+                    {
+                        graction: "Maailman paras juomapeli",
+                        desc: "Pelatkaa maailman parasta juomapeliä. Jos ette tiedä kyseistä peliä, pelatkaa jotain kivaa yhdessä.",
+                        cost: 1500
+                    },
+                    {
+                        graction: "Sääntö",
+                        desc: "Saat määrätä säännön kaikille pelaajille",
+                        cost: 1000
+                    }
+                ]
 			}).then(function(){
 				var newSessionId = newSessionRef.toString().split("sessions/")[1]
                 window.history.pushState("", "", newSessionId)
@@ -135,40 +174,28 @@
                         actions: [
                             {
                                 action: "Juo 3",
-                                desc: "Sinun tulee juoda 3 annosta alkoholia :)",
-                                cost: 6,
-                                reject_cost: 6
+                                desc: "Kulauta 3 huikkaa vapaavalintaista alkoholijuomaa",
+                                cost: 60,
+                                reject_cost: 30
                             },
                             {
                                 action: "Juo 5",
-                                desc: "Sinun tulee juoda 5 annosta alkoholia :)",
-                                cost: 10,
-                                reject_cost: 10
+                                desc: "Kaada kitusiisi 5 huikkaa vapaavalintaista alkoholijuomaa",
+                                cost: 300,
+                                reject_cost: 150
                             },
                             {
                                 action: "Vesiputous",
-                                desc: "Juo niin pitkään kuin haastajakin juo yhdellä kertaa",
-                                cost: 15,
-                                reject_cost: 15
+                                desc: "Juo niin pitkään kuin haastajasikin juo yhdellä kertaa. Voitte haastaa myös muita mukaan",
+                                cost: 600,
+                                reject_cost: 200
                             },
                             {
-                                action: "Ime Cullia",
-                                desc: "8===D",
-                                cost: 6,
-                                reject_cost: 6
-                            },
-                            {
-                                action: "Heitä voltti",
-                                desc: "vaikka ympäri",
-                                cost: 100,
-                                reject_cost: 5
-                            },
-                            {
-                                action: "Mahdoton",
-                                desc: "Tehtävä",
-                                cost: 9999,
-                                reject_cost: 5
-                            },
+                                action: "Ristiin",
+                                desc: "Juokaa 'käsikoukulla' 6 huikkaa alkoholia",
+                                cost: 360,
+                                reject_cost: 180
+                            }
                         ]
                     }).then(function(){           
                         // Show game view in selected session
@@ -229,7 +256,7 @@
                             return points
                         })
                     })
-                }, 2000)
+                }, 1000)
 
                 $("#own_name").html("Master")
                 $("#own_points").html("∞")
@@ -237,6 +264,7 @@
             // Joined game as player
             else {
                 $("#namechange_div").removeClass("hide")
+                $("#gractions-icon").removeClass("hide")
                 // Listen to changes in session
                 var sessionCurrentRef = database.ref("sessions/"+sessionId).on("value", function(snapshot){
                     $("#players_list").html("")
@@ -250,77 +278,13 @@
                             $("#overlay-points").html(own.points)
                             $("#own_name").html(own.name)
                             
-                            // Check if there's any "Accepted" tasks which are waiting for last confirmation
-                            var tasks_by_me = database.ref("sessions/"+sessionId+"/players/").once("value", function(snapshot){
-                                var players = snapshot.val()
-                                for (var player in players){
-                                    if (players.hasOwnProperty(player)){
-                                        var player_tasks = players[player].tasks
-                                        for (var task in player_tasks){
-                                            if (player_tasks.hasOwnProperty(task)){
-                                                var player_task = player_tasks[task]
-                                                if (player_task.issuer === user.uid && player_task.status === "Accepted"){
-                                                    if (Math.floor(Date.now() / 1000) > player_task.expires) {
-                                                        validate_task(sessionId, player, task)
-                                                        hideAlert()
-                                                    } else {
-                                                        showAlert(create_validate_alert(sessionId, player, task))
-                                                    }
-                                                    return
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            })
+                            // Check if should show verify button for given task
+                            check_accepted_tasks(sessionId, user.uid) 
+                            // Check if we have any incoming tasks to accept/reject
+                            check_incoming_tasks(sessionId, user.uid, own.tasks)
+                            // Check gractions
+                            check_gractions(sessionId, user, session_current.gractions)
 
-
-                            // Check to show if should show task overlay
-                            if (own.tasks){
-                                // Loop through tasks, pick first that's not accepted
-                                for (var task in own.tasks){
-                                    var keep_task_overlay_open = false
-                                    if (own.tasks.hasOwnProperty(task)){
-                                        var k = task
-                                        var task = own.tasks[task]
-                                        if (!task.status){
-                                            // Check if task has expired
-                                            if (Math.floor(Date.now() / 1000) > task.expires) {
-                                                reject_task()
-                                            } 
-                                            keep_task_overlay_open = true
-                                            // Found first task that has not been accepted
-                                            $("#incoming_task").html("")
-                                            $("#incoming_task").html(task.action)
-                                            $("#task_desc").html(task.desc)
-
-                                            $("#task_buttons").removeClass("hide")
-
-                                            $("#reject_task_button").attr("task", k)
-                                            $("#accept_task_button").attr("task", k)
-                                            openTask()
-
-                                            return
-                                        } else if (task.status === "Accepted"){
-                                            // Check if task has expired
-                                            if (Math.floor(Date.now() / 1000) > task.expires) {
-                                                validate_task(sessionId, user.uid, k)
-                                            } 
-                                            keep_task_overlay_open = true
-                                            // Has been accepted (by me), not completed
-                                            $("#task_buttons").addClass("hide")
-                                            var wait_for_it_message = $("<div>").html("<p>"+task.action+"</p><p>Odota haastajan hyväksyntää..</p>")                
-                                            $("#incoming_task").html(wait_for_it_message)
-                                            openTask()
-
-                                            return
-                                        } 
-                                    }
-                                    if (keep_task_overlay_open == false){
-                                        closeTask()
-                                    }
-                                }
-                            }
                         } else { // Other player, add to list
                             var player = session_current.players[key]
                             var playerEntry = $("<li class='box'>").html
@@ -337,6 +301,164 @@
             }
         })
     }
+    function check_gractions(sessionId, user, gractions){
+        // Check if we have any gractions
+        for (var graction in gractions){
+            if (gractions.hasOwnProperty(graction)){
+                var gractionKey = graction
+                var graction = gractions[graction]
+                if (!graction.status){
+                    if (Math.floor(Date.now() / 1000) > graction.expires){
+                        if (graction.issuer === user.uid){
+                            end_graction(sessionId, gractionKey)
+                        }
+                        closeIncGractions()
+                        return
+                    }
+                    var players = graction.players
+                    // Check if player in graction already
+                    if (!players || graction.players[user.uid] === undefined){
+                        // Isn't in, show accept/reject
+                        $("#incoming_graction").html(graction.graction)
+                        $("#graction_desc").html(graction.desc)
+                        $("#accept_graction_button, #reject_graction_button").attr("graction", gractionKey)
+                        openIncGractions()
+                        return;
+                    }
+                } else if (graction.status === "Ongoing" && graction.issuer === user.uid){
+                    // Graction ongoing and player is the issuer, show button to
+                    // end this graction
+                    $("#graction-done-button").attr("graction", gractionKey)
+                    $("#graction-done-button").removeClass("hide")
+                }   
+            }
+        }
+    }
+    function complete_graction(key){
+        var gractionKey = $("#graction-done-button").attr("graction") || key
+        var sessionId = window.location.pathname.substring(1)
+        var updateStatus = {
+            status: "Completed"
+        }
+        database.ref("sessions/"+sessionId+"/gractions/"+gractionKey).update(updateStatus)
+        .then(function(){
+            $("#graction-done-button").addClass("hide")
+        })
+    }
+    function end_graction(sessionId, gractionKey){
+        var gractionRef = database.ref("sessions/"+sessionId+"/gractions/"+gractionKey)
+        gractionRef.once("value", function(snapshot){
+            graction = snapshot.val()
+            if (!graction.players){
+                complete_graction(gractionKey)
+            } else {
+                var updateStatus = {
+                    status: "Ongoing"
+                }
+                database.ref("sessions/"+sessionId+"/gractions/"+gractionKey).update(updateStatus)
+            }
+        })
+    }
+    function accept_graction(){
+        var user = getUser()
+        var gractionKey = $("#accept_graction_button").attr("graction")
+        var sessionId = window.location.pathname.substring(1)
+        var gractionPlayersRef = database.ref("sessions/"+sessionId+"/gractions/"+gractionKey+"/players/"+user.uid).set({
+            name: $("#own_name").html(), // Dirty, fix this later (get from db)
+            status: "Accepted"
+        }).then(function(){
+            closeIncGractions()
+        })
+    }
+    function reject_graction(){
+        var user = getUser()
+        var gractionKey = $("#accept_graction_button").attr("graction")
+        var sessionId = window.location.pathname.substring(1)
+        var gractionPlayersRef = database.ref("sessions/"+sessionId+"/gractions/"+gractionKey+"/players/"+user.uid).set({
+            name: $("#own_name").html(),
+            status: "Rejected"
+        }).then(function(){
+            closeIncGractions()
+        })
+    }
+    function accept_task(){
+        var user = getUser()
+        var taskKey = $("#accept_task_button").attr("task")
+        var sessionId = window.location.pathname.substring(1)
+        var updateStatus = {
+            status: "Accepted",
+            expires: ( Math.floor(Date.now() / 1000) ) + TASK_EXPIRE_TIME_ACCEPTED
+        }
+        database.ref("sessions/"+sessionId+"/players/"+user.uid+"/tasks/"+taskKey).update(updateStatus)
+        .then(function(){
+            var getTask = get_task(sessionId, user.uid, taskKey).then(function(task){
+                decrease_points(sessionId, task.issuer, task.cost)
+            })
+        })
+    }
+    function check_accepted_tasks(sessionId, uid){
+        // Checks if there's any "Accepted" tasks which are waiting for last confirmation
+        var tasks_by_me = database.ref("sessions/"+sessionId+"/players/").once("value", function(snapshot){
+            var players = snapshot.val()
+            for (var player in players){
+                if (players.hasOwnProperty(player)){
+                    var player_tasks = players[player].tasks
+                    for (var task in player_tasks){
+                        if (player_tasks.hasOwnProperty(task)){
+                            var player_task = player_tasks[task]
+                            if (player_task.issuer === uid && player_task.status === "Accepted"){
+                                if (Math.floor(Date.now() / 1000) > player_task.expires) {
+                                    validate_task(sessionId, player, task)
+                                    hideAlert()
+                                } else {
+                                    showAlert(create_validate_alert(sessionId, player, task))
+                                }
+                                return
+                            }
+                        }
+                    }
+                }
+            }
+        })
+    }
+    function openGractions(){
+        $("#gractions").css("width", "100%")
+        $("#gractions_list").html("")
+        var sessionId = window.location.pathname.substring(1)
+        var getSession = get_session(sessionId).then(function(session){
+            if (!session.gractionsList){
+                $("#gractions_list").html("Ei ryhmätehtäviä saatavilla")
+            }
+            var gractions = session.gractionsList
+            // Loop through gractions
+            Object.keys(gractions).forEach(function(key){
+                var graction = $("<p class='action-list-action'>")
+                graction.html("<span>"+ gractions[key].graction + " ( -"+gractions[key].cost+"p ) </span>" 
+                +"<i class='fa fa-angle-double-right' aria-hidden='true'></i>")
+                graction.on("click", function(){ // Bind onclick function
+                    select_graction(gractions[key], sessionId)
+                })
+                $("#gractions_list").append(graction)
+            })
+        })   
+    }
+    function select_graction(graction, sessionId){
+        var user = getUser()
+        if (!user){
+            return;
+        }
+        // Add graction to gractions
+        var newGractionRef = database.ref("sessions/"+sessionId+"/gractions").push();
+        newGractionRef.set({
+            graction: graction.graction,
+            desc: graction.desc,
+            cost: graction.cost,
+            issuer: user.uid,
+            expires: ( Math.floor(Date.now() / 1000) ) + GRACTION_EXPIRE_TIME_INITIAL
+        }).then(function(){
+            closeGractions()
+        })
+    }
     function select_player(player_uid, sessionId, own_uid){
         // Get own actions
         var sessionRef = database.ref("sessions/"+sessionId+"/players/"+own_uid+"/actions").once("value", function(snapshot){
@@ -345,13 +467,61 @@
             // Loop through actions
             Object.keys(actions).forEach(function(key){
                 var action = $("<p class='action-list-action'>").html("<span>"+ actions[key].action + " ( -"+actions[key].cost+"p ) </span> <i class='fa fa-angle-double-right' aria-hidden='true'></i>")
-                action.on("click", function(){
+                action.on("click", function(){ // Bind onclick function
                     select_action(actions[key], player_uid, sessionId)
                 })
                 $("#actions_list").append(action)                
             })
         })
         openActions()
+    }
+    function check_incoming_tasks(sessionId, uid, tasks){
+            // Checks to show if should show task overlay
+            if (tasks){
+                // Loop through tasks, pick first that's not accepted
+                for (var task in tasks){
+                    var keep_task_overlay_open = false
+                    if (tasks.hasOwnProperty(task)){
+                        var k = task
+                        var task = tasks[task]
+                        if (!task.status){
+                            // Check if task has expired
+                            if (Math.floor(Date.now() / 1000) > task.expires) {
+                                reject_task()
+                            } 
+                            keep_task_overlay_open = true
+                            // Found first task that has not been accepted
+                            $("#incoming_task").html("")
+                            $("#incoming_task").html(task.action)
+                            $("#task_desc").html(task.desc)
+
+                            $("#task_buttons").removeClass("hide")
+
+                            $("#reject_task_button").attr("task", k)
+                            $("#accept_task_button").attr("task", k)
+                            openTask()
+
+                            return
+                        } else if (task.status === "Accepted"){
+                            // Check if task has expired
+                            if (Math.floor(Date.now() / 1000) > task.expires) {
+                                validate_task(sessionId, user.uid, k)
+                            } 
+                            keep_task_overlay_open = true
+                            // Has been accepted (by me), not completed
+                            $("#task_buttons").addClass("hide")
+                            var wait_for_it_message = $("<div>").html("<p>"+task.action+"</p><p>Odota haastajan hyväksyntää..</p>")                
+                            $("#incoming_task").html(wait_for_it_message)
+                            openTask()
+
+                            return
+                        } 
+                    }
+                    if (keep_task_overlay_open == false){
+                        closeTask()
+                    }
+                }
+            }
     }
     function select_action(action, player_uid, sessionId){
         var user = getUser()
@@ -400,21 +570,6 @@
             hideAlert()
         })
     }
-    function accept_task(){
-        var user = getUser()
-        var taskKey = $("#accept_task_button").attr("task")
-        var sessionId = window.location.pathname.substring(1)
-        var updateStatus = {
-            status: "Accepted",
-            expires: ( Math.floor(Date.now() / 1000) ) + TASK_EXPIRE_TIME_ACCEPTED
-        }
-        database.ref("sessions/"+sessionId+"/players/"+user.uid+"/tasks/"+taskKey).update(updateStatus)
-        .then(function(){
-            var getTask = get_task(sessionId, user.uid, taskKey).then(function(task){
-                decrease_points(sessionId, task.issuer, task.cost)
-            })
-        })
-    }
     function decrease_points(sessionId, uid, cost){
         var playerPointsRef = database.ref("sessions/"+sessionId+"/players/"+uid+"/points")
         playerPointsRef.transaction(function(points){
@@ -452,6 +607,18 @@
             })
         })
         closeTask()
+    }
+    function get_session(sessionId){
+         return new Promise(function(resolve, reject){
+            var taskRef = database.ref("sessions/"+sessionId).once("value", function(snapshot){
+                var session = snapshot.val()
+                if (session){
+                    resolve(session)
+                } else {
+                    reject("Session not found", sessionId)
+                }
+            })
+        })       
     }
     function get_task(sessionId, uid, taskKey){
         return new Promise(function(resolve, reject){
