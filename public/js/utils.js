@@ -33,7 +33,7 @@ function change_name(){
         }
         // Update name
         var updateName = {
-            name: $("#newName").val()
+            name: $("#newName").val() || "Pelaaja"
         }
         database.ref("sessions/"+sessionId+"/players/"+user.uid).update(updateName)
         .then(function(){

@@ -212,6 +212,18 @@
                                 desc: "Juokaa 'käsikoukulla' 6 huikkaa alkoholia",
                                 cost: 360,
                                 reject_cost: 180
+                            },
+                            {
+                                action: "Juo shotti",
+                                desc: "Juokaa shotti vapaavalintaista alkoholijuomaa",
+                                cost: 500,
+                                reject_cost: 300
+                            },
+                            {
+                                action: "Kivi paperi sakset",
+                                desc: "Pelatkaa KPS. Häviäjä juo 5 huikkaa vapaavalintaista alkoholia",
+                                cost: 300,
+                                reject_cost: 150
                             }
                         ]
                     }).then(function(){           
@@ -254,7 +266,7 @@
                     }
                     Object.keys(playerList).forEach(function(key){
                             var player = playerList[key]
-                            var playerEntry = $("<li class='box'>").html
+                            var playerEntry = $("<li class='playerbox'>").html
                                 ('<i class="fa fa-user-o" aria-hidden="true"></i> '
                                 +player.name
                                 +"<span class='right'> "+player.points+"</span>")
