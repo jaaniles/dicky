@@ -106,8 +106,19 @@ body {
    color: #4F8A10 !important; 
    cursor: pointer;
 }
+.settings-title{
+    transition: 0.3s;
+}
+.settings-title:hover{
+   color: #4F8A10 !important; 
+   cursor: pointer;
+}
 .center{
     text-align: center;
+}
+.rules-title{
+    font-size: 14px;
+    text-align: center !important;
 }
 
 blockquote p {

@@ -49,7 +49,7 @@
                 <i class="fa fa-bars fa-2x" aria-hidden="true"></i>
             </div>
             <div class="footer_points">
-                <span><span id='own_points'>0</span>p</span>
+                <span><span class="points">0</span>p</span>
             </div>
         </div>
         <!-- Graction Icon -->
@@ -61,14 +61,14 @@
     <!-- Actions overlay-->
     <div id="actions" class="overlay">
         <p class="closebtn" onclick="closeActions()">&times;</a>
-        <p class="overlay-points"><span id="overlay-points">0</span>p</p>
+        <p class="overlay-points"><span class="points">0</span>p</p>
         <div class="overlay-content" id='actions_list'></div>
         </div>
     </div>
     <!-- Group Actions overlay-->
     <div id="gractions" class="overlay">
         <p class="closebtn" onclick="closeGractions()">&times;</a>
-        <p class="overlay-points"><span id="overlay-points">0</span>p</p>
+        <p class="overlay-points"><span class="points">0</span>p</p>
         <div class="overlay-content" id='gractions_list'></div>
         </div>
     </div>
@@ -81,6 +81,15 @@
                 <button id="accept_graction_button" onclick="accept_graction()" class="ui-btn btn-accept">Hyväksy <i class="fa fa-angle-double-right" aria-hidden="true"></i></button>
                 <button id="graction_button" onclick="reject_graction()" class="ui-btn btn-reject">Torju <i class="fa fa-angle-double-right" aria-hidden="true"></i></button>
             </div>
+        </div>
+    </div>
+    <!-- Rule overlay -->
+    <div id="rule" class="overlay">
+        <div class="overlay-content">
+            <div id="rule_div">
+                <input type="text" id="newRule" class="ui-input" placeholder="Uusi sääntö lyhyesti">
+                <button id="new-rule-button" onClick="new_rule_graction()" class="ui-btn btn-accept">Uusi sääntö <i class="fa fa-angle-double-right" aria-hidden="true"></i></button>
+            </div>   
         </div>
     </div>
     <!-- Task overlay-->
@@ -97,7 +106,15 @@
     <!-- Settings overlay -->
     <div id="settings_overlay" class="overlay">
         <p class="closebtn" onclick="closeSettings()">&times;</a>
-        <h2 class="title" onclick='home()'>Dicky</h2>
+        <h2 class="title settings-title" onclick='home()'>Etusivulle <i class="fa fa-angle-double-right" aria-hidden="true"></i></h2>
+        <div id="session_rules" class="hide">
+        <hr>
+            <h2 class="rules-title">Pelin säännöt</h2>
+            <ul id="session_rules_list">
+            </ul>
+            <h2 class="rules-title">Sääntöjen rikkomisesta juodaan rangaistuksena <span id="rule-penalty">0</span> huikkaa</h2>
+        </div>
+        <hr>
         <div class="overlay-content">
             <div id="namechange_div" class="hide">
                 <input type="text" id="newName" class="ui-input" placeholder="Uusi nimi">
@@ -208,6 +225,7 @@
 
     function show_game_view(sessionId){
         $("#session_div").addClass("hide")
+        $("#session_rules").removeClass("hide")
         var user = getUser()
         if (!user){
             return
@@ -215,6 +233,8 @@
 
         $("#sessions").remove()
         $("#gameView").removeClass("hide")
+
+        $("#rule-penalty").html(RULE_PENALTY)
 
         // Get initial info from session
         var sessionRef = database.ref("sessions/"+sessionId).once("value", function(snapshot){
@@ -274,10 +294,10 @@
                     Object.keys(session_current.players).forEach(function(key){
                         if (key === user.uid){ // It's me!
                             var own = session_current.players[key]
-                            $("#own_points").html(own.points)
-                            $("#overlay-points").html(own.points)
+                            $(".points").html(own.points)
                             $("#own_name").html(own.name)
                             
+                            check_session_rules(session_current)
                             // Check if should show verify button for given task
                             check_accepted_tasks(sessionId, user.uid) 
                             // Check if we have any incoming tasks to accept/reject
@@ -301,6 +321,16 @@
             }
         })
     }
+    function check_session_rules(session){
+        if (session.rules){
+            Object.keys(session.rules).forEach(function(key){
+                var rule = session.rules[key]
+                var ruleEl = $("<li>").html(rule.rule)
+                $("#session_rules_list").html("")
+                $("#session_rules_list").append(ruleEl)
+            })
+        }
+    }
     function check_gractions(sessionId, user, gractions){
         // Check if we have any gractions
         for (var graction in gractions){
@@ -320,7 +350,11 @@
                     if (!players || graction.players[user.uid] === undefined){
                         // Isn't in, show accept/reject
                         $("#incoming_graction").html(graction.graction)
-                        $("#graction_desc").html(graction.desc)
+                        if (graction.rule){
+                            $("#graction_desc").html(graction.rule)
+                        } else {
+                            $("#graction_desc").html(graction.desc)
+                        }
                         $("#accept_graction_button, #reject_graction_button").attr("graction", gractionKey)
                         openIncGractions()
                         return;
@@ -352,11 +386,36 @@
             if (!graction.players){
                 complete_graction(gractionKey)
             } else {
-                var updateStatus = {
-                    status: "Ongoing"
+
+                // Rule gractions have specific logic
+                if (graction.rule){
+                    var players_accepted = 0;
+                    var players_count = Object.keys(graction.players).length
+                    Object.keys(graction.players).forEach(function(key){
+                        if (graction.players[key].status === "Accepted"){
+                            players_accepted++
+                        }
+                    })
+                    var percentage = (players_accepted / players_count) * 100
+                    if (percentage > RULE_ACCEPTS_PERCENTAGE){
+                        complete_graction(gractionKey)
+                        push_new_rule(sessionId, graction)
+                    }
+                } else {
+                    var updateStatus = {
+                        status: "Ongoing"
+                    }
+                    database.ref("sessions/"+sessionId+"/gractions/"+gractionKey).update(updateStatus)
                 }
-                database.ref("sessions/"+sessionId+"/gractions/"+gractionKey).update(updateStatus)
             }
+        })
+    }
+    function push_new_rule(sessionId, graction){
+        var newGractionRef = database.ref("sessions/"+sessionId+"/rules").push();
+        newGractionRef.set({
+            rule: graction.rule,
+            issuer: graction.issuer,
+            created: ( Math.floor(Date.now() / 1000) )
         })
     }
     function accept_graction(){
@@ -436,11 +495,51 @@
                 graction.html("<span>"+ gractions[key].graction + " ( -"+gractions[key].cost+"p ) </span>" 
                 +"<i class='fa fa-angle-double-right' aria-hidden='true'></i>")
                 graction.on("click", function(){ // Bind onclick function
-                    select_graction(gractions[key], sessionId)
+                    if (gractions[key].graction === "Sääntö"){ // Specific logic for Rule-graction
+                        closeGractions()
+                        openRuleOverlay(key)
+                    } else {
+                        select_graction(gractions[key], sessionId)
+                    }
                 })
                 $("#gractions_list").append(graction)
             })
         })   
+    }
+    function new_rule_graction(){
+        var rule = $("#newRule").val()
+        if (!rule){
+            return;
+        }
+        var sessionId = window.location.pathname.substring(1)
+        var gractionKey = $("#new-rule-button").attr("graction")
+        closeRuleOverlay()
+        var user = getUser()
+        if (!user){
+            return;
+        }
+        database.ref("sessions/"+sessionId+"/gractionsList/"+gractionKey).once("value", function(snapshot){
+            var graction = snapshot.val()
+            // Add graction to gractions
+            var newGractionRef = database.ref("sessions/"+sessionId+"/gractions").push();
+            newGractionRef.set({
+                graction: graction.graction,
+                rule: rule,
+                desc: graction.desc,
+                cost: graction.cost,
+                issuer: user.uid,
+                expires: ( Math.floor(Date.now() / 1000) ) + GRACTION_EXPIRE_TIME_INITIAL
+            }).then(function(){
+                closeGractions()
+            })
+        })
+    }
+    function openRuleOverlay(key){
+        $("#rule").css("width", "100%")
+        $("#new-rule-button").attr("graction", key)
+    }
+    function closeRuleOverlay(){
+        $("#rule").css("width", "0%")
     }
     function select_graction(graction, sessionId){
         var user = getUser()
