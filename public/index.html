@@ -95,6 +95,7 @@
     <!-- Task overlay-->
     <div id="task_overlay" class="overlay">
         <div class="overlay-content">
+            <p id="incoming_task_issuer"></p>
             <p id="incoming_task"></p>
             <span>"</span><blockquote id="task_desc"></blockquote><span>"</span>
             <div id="task_buttons">
@@ -192,19 +193,25 @@
                             {
                                 action: "Juo 3",
                                 desc: "Kulauta 3 huikkaa vapaavalintaista alkoholijuomaa",
-                                cost: 60,
+                                cost: 180,
                                 reject_cost: 30
                             },
                             {
                                 action: "Juo 5",
                                 desc: "Kaada kitusiisi 5 huikkaa vapaavalintaista alkoholijuomaa",
-                                cost: 300,
+                                cost: 240,
                                 reject_cost: 150
                             },
                             {
                                 action: "Vesiputous",
                                 desc: "Juo niin pitkään kuin haastajasikin juo yhdellä kertaa. Voitte haastaa myös muita mukaan",
-                                cost: 600,
+                                cost: 500,
+                                reject_cost: 200
+                            },
+                            {
+                                action: "JUO LOPPUUN!!",
+                                desc: "Juo juomasi loppuun",
+                                cost: 500,
                                 reject_cost: 200
                             },
                             {
@@ -221,8 +228,8 @@
                             },
                             {
                                 action: "Kivi paperi sakset",
-                                desc: "Pelatkaa KPS. Häviäjä juo 5 huikkaa vapaavalintaista alkoholia",
-                                cost: 300,
+                                desc: "Pelaa KPS haluamasi henkilön kanssa. Häviäjä juo 5 huikkaa vapaavalintaista alkoholia",
+                                cost: 120,
                                 reject_cost: 150
                             }
                         ]
@@ -600,19 +607,23 @@
                             if (Math.floor(Date.now() / 1000) > task.expires) {
                                 reject_task()
                             } 
-                            keep_task_overlay_open = true
-                            // Found first task that has not been accepted
-                            $("#incoming_task").html("")
-                            $("#incoming_task").html(task.action)
-                            $("#task_desc").html(task.desc)
+                            var getPlayer = get_player(sessionId, task.issuer).then(function(player){
+                    
+                                keep_task_overlay_open = true
+                                // Found first task that has not been accepted
+                                $("#incoming_task").html("")
+                                $("#incoming_task").html(task.action)
+                                $("#task_desc").html(task.desc)
+                                $("#incoming_task_issuer").html(player.name + " haastoi sinut")
 
-                            $("#task_buttons").removeClass("hide")
+                                $("#task_buttons").removeClass("hide")
 
-                            $("#reject_task_button").attr("task", k)
-                            $("#accept_task_button").attr("task", k)
-                            openTask()
+                                $("#reject_task_button").attr("task", k)
+                                $("#accept_task_button").attr("task", k)
+                                openTask()
 
-                            return
+                                return  
+                            })
                         } else if (task.status === "Accepted"){
                             // Check if task has expired
                             if (Math.floor(Date.now() / 1000) > task.expires) {
