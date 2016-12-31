@@ -393,9 +393,16 @@
         var updateStatus = {
             status: "Completed"
         }
+        console.log("ehhh")
         database.ref("sessions/"+sessionId+"/gractions/"+gractionKey).update(updateStatus)
         .then(function(){
-            $("#graction-done-button").addClass("hide")
+            // Get graction
+            database.ref("sessions/"+sessionId+"/gractions/"+gractionKey).once("value", function(snapshot){
+                console.log("done")
+                var graction = snapshot.val()
+                $("#graction-done-button").addClass("hide")
+                decrease_points(sessionId, graction.issuer, graction.cost)
+            })
         })
     }
     function end_graction(sessionId, gractionKey){
@@ -405,7 +412,6 @@
             if (!graction.players){
                 complete_graction(gractionKey)
             } else {
-
                 // Rule gractions have specific logic
                 if (graction.rule){
                     var players_accepted = 0;
